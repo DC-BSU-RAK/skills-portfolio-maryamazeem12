@@ -92,7 +92,7 @@ def init_videos():
             return None
 
     cap_start = safe_capture("quiz2.mp4")
-    instructions_cap = safe_capture("instruction.mp4")
+    instructions_cap = safe_capture("instructions.mp4")
     difficulty_cap = safe_capture("levels.mp4")
     result_cap = safe_capture("result_bg.mp4")
 

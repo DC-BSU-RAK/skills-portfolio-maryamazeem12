@@ -198,11 +198,10 @@ def create_next_button():
 
     instructions_canvas.tag_bind(oval, "<Button-1>", click)
     instructions_canvas.tag_bind(text, "<Button-1>", click)
-
 # ==========================
-# DIFFICULTY PAGE
+# DIFFICULTY PAGE - DESIGN 2 (COMPACT 3D GRADIENT BUTTONS)
 # ==========================
-difficulty_canvas = tk.Canvas(difficulty_frame, width=screen_width, height=screen_height, highlightthickness=0)
+difficulty_canvas = tk.Canvas(difficulty_frame, width=screen_width, height=screen_height, bg="#111", highlightthickness=0)
 difficulty_canvas.pack(fill="both", expand=True)
 difficulty_bg_id = difficulty_canvas.create_image(0, 0, anchor="nw", image=None)
 difficulty_frame_img = None
@@ -211,33 +210,80 @@ def play_difficulty_video():
     play_video(difficulty_cap, difficulty_canvas, difficulty_bg_id, "difficulty_after_id", "difficulty_frame_img")
 
 def create_difficulty_buttons():
-    difficulty_canvas.delete("diffbtn")
-    options = [("Easy (1-digit) 🐣",1), ("Moderate (2-digit) 🐱",2), ("Advanced (4-digit) 🦄",3)]
-    start_y = int(screen_height*0.4)
-    gap = 100
-    for i, (text, level) in enumerate(options):
-        y_pos = start_y + i*gap
-        txt = difficulty_canvas.create_text(screen_width//2, y_pos, text=text, fill="#FFD700",
-                                           font=("Helvetica", 28, "bold"), tags="diffbtn")
+    difficulty_canvas.delete("diffbtn")  # clear old buttons if any
 
-        def on_enter(event, t=txt):
-            difficulty_canvas.itemconfig(t, fill="orange")
-        def on_leave(event, t=txt):
-            difficulty_canvas.itemconfig(t, fill="#FFD700")
+    # Options: (label, level, top_color, bottom_color)
+    options = [
+        ("Easy (1-digit) 🐣", 1, "#6aff6a", "#00b300"),
+        ("Moderate (2-digit) 🐱", 2, "#ffd966", "#ff9900"),
+        ("Advanced (4-digit) 🦄", 3, "#ff6ab3", "#ff1a75")
+    ]
 
-        difficulty_canvas.tag_bind(txt, "<Enter>", on_enter)
-        difficulty_canvas.tag_bind(txt, "<Leave>", on_leave)
+    start_y = int(screen_height * 0.40)
+    gap = 100  # smaller gap between buttons
 
-        def click(event, lvl=level):
-            global difficulty
-            difficulty = lvl
-            if difficulty_cap: difficulty_cap.release()
-            difficulty_frame.pack_forget()
-            stop_music()
-            play_music(quiz_music_path, loop=-1, volume=0.4)
-            start_quiz(difficulty)
+    for i, (text, level, color_top, color_bottom) in enumerate(options):
+        y = start_y + i * gap
+        left, right = screen_width//2 - 200, screen_width//2 + 200  # narrower
+        top, bottom = y - 35, y + 35  # shorter height
 
-        difficulty_canvas.tag_bind(txt, "<Button-1>", click)
+        # Shadow rectangle for 3D effect
+        shadow = difficulty_canvas.create_rectangle(left+6, top+6, right+6, bottom+6,
+                                                    fill="#000000", outline="", tags=("diffbtn", f"shadow_{i}"))
+
+        # Gradient rectangle (simulated with top color)
+        rect = difficulty_canvas.create_rectangle(left, top, right, bottom,
+                                                  fill=color_top, outline=color_bottom, width=3, tags=("diffbtn", f"rect_{i}"))
+
+        # Text
+        txt = difficulty_canvas.create_text(screen_width//2, y, text=text, font=("Arial", 24, "bold"), fill="white", tags=("diffbtn", f"text_{i}"))
+
+        # Hover effects
+        def make_on_enter(r=rect, s=shadow, t=txt, top_c=color_top):
+            def _on_enter(event):
+                difficulty_canvas.itemconfig(r, fill=top_c)
+                difficulty_canvas.itemconfig(s, fill=top_c)
+                difficulty_canvas.itemconfig(t, fill="#000")
+            return _on_enter
+
+        def make_on_leave(r=rect, s=shadow, t=txt, top_c=color_top):
+            def _on_leave(event):
+                difficulty_canvas.itemconfig(r, fill=top_c)
+                difficulty_canvas.itemconfig(s, fill="#000")
+                difficulty_canvas.itemconfig(t, fill="white")
+            return _on_leave
+
+        on_enter = make_on_enter()
+        on_leave = make_on_leave()
+
+        for part in [rect, shadow, txt]:
+            difficulty_canvas.tag_bind(part, "<Enter>", on_enter)
+            difficulty_canvas.tag_bind(part, "<Leave>", on_leave)
+
+        # Click handler with confirmation message box
+        def make_click(lvl):
+            def _click(event):
+                if lvl == 1:
+                    msg = "There are 10 single-digit questions.\nAre you ready? Best of luck! 🎉"
+                elif lvl == 2:
+                    msg = "There are 10 two-digit questions.\nAre you ready? Best of luck! 🎉"
+                else:
+                    msg = "There are 10 four-digit questions.\nAre you ready? Best of luck! 🎉"
+                answer = messagebox.askquestion("Start Level?", msg)
+                if answer == "yes":
+                    global difficulty
+                    difficulty = lvl
+                    if difficulty_cap: difficulty_cap.release()
+                    difficulty_frame.pack_forget()
+                    stop_music()
+                    play_music(quiz_music_path, loop=-1, volume=0.4)
+                    start_quiz(difficulty)
+            return _click
+
+        click_handler = make_click(level)
+
+        for part in [rect, shadow, txt]:
+            difficulty_canvas.tag_bind(part, "<Button-1>", click_handler)
 
 # ==========================
 # QUIZ PAGE
@@ -245,7 +291,6 @@ def create_difficulty_buttons():
 quiz_canvas = tk.Canvas(quiz_frame, width=screen_width, height=screen_height, highlightthickness=0)
 quiz_canvas.pack(fill="both", expand=True)
 
-# Load background image safely
 # Load background image safely
 quiz_bg_path = os.path.join(script_dir, "quiz_bg.jpg")
 if os.path.exists(quiz_bg_path):
@@ -257,7 +302,6 @@ if os.path.exists(quiz_bg_path):
 else:
     quiz_canvas.create_rectangle(0, 0, screen_width, screen_height, fill="black")
     print(f"Warning: Quiz background not found at {quiz_bg_path}")
-
 
 # Question, options, feedback, score
 question_number_label = tk.Label(quiz_canvas, text="", font=("Comic Sans MS", 24, "bold"),

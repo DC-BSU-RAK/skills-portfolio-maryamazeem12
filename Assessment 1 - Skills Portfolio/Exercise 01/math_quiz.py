@@ -9,14 +9,16 @@ import pygame  # For audio playback
 # ==========================
 # GLOBAL VARIABLES
 # ==========================
-score = 0
-question_number = 0
-current_answer = 0
-difficulty = 1
-max_questions = 10
-second_chance = True
+score = 0  # Player score
+question_number = 0  # Current question number
+current_answer = 0  # Correct answer for the current question
+difficulty = 1  # Difficulty level (1=easy, 2=moderate, 3=advanced)
+max_questions = 10  # Total questions per game
+second_chance = True  # Allows one retry per question
+timer_seconds = 15  # Timer per question
+timer_id = None  # ID for the after() method controlling timer
 
-# Video loop IDs
+# Video loop IDs for scheduling video playback
 start_after_id = None
 instruction_after_id = None
 difficulty_after_id = None
@@ -25,41 +27,44 @@ result_after_id = None
 # ==========================
 # WORKING DIRECTORY
 # ==========================
-# Ensure relative paths work regardless of where script is run
 script_dir = os.path.dirname(os.path.abspath(__file__))
-os.chdir(script_dir)
+os.chdir(script_dir)  # Ensure all file paths are relative to script
 
 # ==========================
 # MAIN WINDOW SETUP
 # ==========================
 root = tk.Tk()
 root.title("🎉 Fun Maths Quiz 🎉")
-root.attributes('-fullscreen', True)
-root.attributes('-topmost', True)
-root.overrideredirect(True)
-root.bind("<Escape>", lambda e: root.destroy())
+root.attributes('-fullscreen', True)  # Fullscreen mode
+root.attributes('-topmost', True)  # Keep window on top
+root.overrideredirect(True)  # Remove default window frame
+root.bind("<Escape>", lambda e: root.destroy())  # Escape closes app
 
+# Get screen dimensions
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 
 # ==========================
 # AUDIO SETUP
 # ==========================
-pygame.mixer.init()
+pygame.mixer.init()  # Initialize pygame audio
 intro_music_path = "intro_music.mp3"
 quiz_music_path = "quiz_music.mp3"
 correct_audio_path = "correct.mp3"
 wrong_audio_path = "wrong.mp3"
 
+# Play background music
 def play_music(path, loop=-1, volume=0.5):
     if os.path.exists(path):
         pygame.mixer.music.load(path)
         pygame.mixer.music.set_volume(volume)
         pygame.mixer.music.play(loop)
 
+# Stop background music
 def stop_music():
     pygame.mixer.music.stop()
 
+# Play short sound effects
 def play_sound(path, volume=1.0):
     if os.path.exists(path):
         sound = pygame.mixer.Sound(path)
@@ -70,8 +75,9 @@ def play_sound(path, volume=1.0):
 # CANVAS AND FRAMES
 # ==========================
 canvas = tk.Canvas(root, width=screen_width, height=screen_height, highlightthickness=0)
-canvas.pack(fill="both", expand=True)
+canvas.pack(fill="both", expand=True)  # Main canvas covering entire window
 
+# Frames for different pages
 menu_frame = tk.Frame(root, bg="#222")
 quiz_frame = tk.Frame(root, bg="#222")
 result_frame = tk.Frame(root, bg="#222")
@@ -84,6 +90,7 @@ difficulty_frame = tk.Frame(root, bg="#222")
 def init_videos():
     global cap_start, instructions_cap, difficulty_cap, result_cap
 
+    # Safely create video capture object if file exists
     def safe_capture(file):
         if os.path.exists(file):
             return cv2.VideoCapture(file)
@@ -102,6 +109,7 @@ init_videos()
 # VIDEO PLAYBACK FUNCTIONS
 # ==========================
 def play_video(cap, canvas_widget, bg_id, after_var_name, frame_img_var_name):
+    """Plays video frames on the given canvas using after() loop."""
     if cap is None:
         return
 
@@ -115,6 +123,7 @@ def play_video(cap, canvas_widget, bg_id, after_var_name, frame_img_var_name):
         img = Image.fromarray(frame)
         globals()[frame_img_var_name] = ImageTk.PhotoImage(img)
         canvas_widget.itemconfig(bg_id, image=globals()[frame_img_var_name])
+    # Schedule next frame update
     globals()[after_var_name] = canvas_widget.after(30, lambda: play_video(cap, canvas_widget, bg_id, after_var_name, frame_img_var_name))
 
 # ==========================
@@ -127,14 +136,17 @@ def play_start_video():
     play_video(cap_start, canvas, start_bg_id, "start_after_id", "start_frame_img")
 
 def create_play_button():
+    """Creates the PLAY button on the start page with hover effect."""
     x1, y1 = screen_width//2 - 80, int(screen_height*0.65)-35
     x2, y2 = screen_width//2 + 80, int(screen_height*0.65)+35
     dark_yellow = "#FFD700"
 
+    # Button shape and text
     oval = canvas.create_oval(x1, y1, x2, y2, fill="black", outline=dark_yellow, width=3, tags="playbtn")
     text = canvas.create_text(screen_width//2, int(screen_height*0.65), text="PLAY ▶", fill=dark_yellow,
                               font=("Helvetica", 20, "bold"), tags="playbtn")
 
+    # Hover effects
     def on_enter(event):
         canvas.itemconfig(oval, fill=dark_yellow)
         canvas.itemconfig(text, fill="black")
@@ -147,6 +159,7 @@ def create_play_button():
     canvas.tag_bind(text, "<Enter>", on_enter)
     canvas.tag_bind(text, "<Leave>", on_leave)
 
+    # Click event to move to instructions page
     def click(event):
         if cap_start: cap_start.release()
         canvas.pack_forget()
@@ -169,6 +182,7 @@ def play_instructions_video():
     play_video(instructions_cap, instructions_canvas, instructions_bg_id, "instruction_after_id", "instructions_frame_img")
 
 def create_next_button():
+    """Creates NEXT button for instructions page with hover effect."""
     x1, y1 = int(screen_width*0.65) - 80, int(screen_height*0.85) - 35
     x2, y2 = int(screen_width*0.65) + 80, int(screen_height*0.85) + 35
     med_yellow = "#DAA520"
@@ -189,6 +203,7 @@ def create_next_button():
     instructions_canvas.tag_bind(text, "<Enter>", on_enter)
     instructions_canvas.tag_bind(text, "<Leave>", on_leave)
 
+    # Click event to go to difficulty selection page
     def click(event):
         if instructions_cap: instructions_cap.release()
         next_page_frame.pack_forget()
@@ -198,8 +213,9 @@ def create_next_button():
 
     instructions_canvas.tag_bind(oval, "<Button-1>", click)
     instructions_canvas.tag_bind(text, "<Button-1>", click)
+
 # ==========================
-# DIFFICULTY PAGE - DESIGN 2 (COMPACT 3D GRADIENT BUTTONS)
+# DIFFICULTY PAGE
 # ==========================
 difficulty_canvas = tk.Canvas(difficulty_frame, width=screen_width, height=screen_height, bg="#111", highlightthickness=0)
 difficulty_canvas.pack(fill="both", expand=True)
@@ -210,35 +226,27 @@ def play_difficulty_video():
     play_video(difficulty_cap, difficulty_canvas, difficulty_bg_id, "difficulty_after_id", "difficulty_frame_img")
 
 def create_difficulty_buttons():
-    difficulty_canvas.delete("diffbtn")  # clear old buttons if any
-
-    # Options: (label, level, top_color, bottom_color)
+    """Creates difficulty buttons with hover effect and click logic."""
+    difficulty_canvas.delete("diffbtn")
     options = [
         ("Easy (1-digit) 🐣", 1, "#6aff6a", "#00b300"),
         ("Moderate (2-digit) 🐱", 2, "#ffd966", "#ff9900"),
         ("Advanced (4-digit) 🦄", 3, "#ff6ab3", "#ff1a75")
     ]
-
     start_y = int(screen_height * 0.40)
-    gap = 100  # smaller gap between buttons
+    gap = 100
 
     for i, (text, level, color_top, color_bottom) in enumerate(options):
         y = start_y + i * gap
-        left, right = screen_width//2 - 200, screen_width//2 + 200  # narrower
-        top, bottom = y - 35, y + 35  # shorter height
-
-        # Shadow rectangle for 3D effect
+        left, right = screen_width//2 - 200, screen_width//2 + 200
+        top, bottom = y - 35, y + 35
         shadow = difficulty_canvas.create_rectangle(left+6, top+6, right+6, bottom+6,
                                                     fill="#000000", outline="", tags=("diffbtn", f"shadow_{i}"))
-
-        # Gradient rectangle (simulated with top color)
         rect = difficulty_canvas.create_rectangle(left, top, right, bottom,
                                                   fill=color_top, outline=color_bottom, width=3, tags=("diffbtn", f"rect_{i}"))
-
-        # Text
         txt = difficulty_canvas.create_text(screen_width//2, y, text=text, font=("Arial", 24, "bold"), fill="white", tags=("diffbtn", f"text_{i}"))
 
-        # Hover effects
+        # Hover enter
         def make_on_enter(r=rect, s=shadow, t=txt, top_c=color_top):
             def _on_enter(event):
                 difficulty_canvas.itemconfig(r, fill=top_c)
@@ -246,6 +254,7 @@ def create_difficulty_buttons():
                 difficulty_canvas.itemconfig(t, fill="#000")
             return _on_enter
 
+        # Hover leave
         def make_on_leave(r=rect, s=shadow, t=txt, top_c=color_top):
             def _on_leave(event):
                 difficulty_canvas.itemconfig(r, fill=top_c)
@@ -253,22 +262,19 @@ def create_difficulty_buttons():
                 difficulty_canvas.itemconfig(t, fill="white")
             return _on_leave
 
-        on_enter = make_on_enter()
-        on_leave = make_on_leave()
-
         for part in [rect, shadow, txt]:
-            difficulty_canvas.tag_bind(part, "<Enter>", on_enter)
-            difficulty_canvas.tag_bind(part, "<Leave>", on_leave)
+            difficulty_canvas.tag_bind(part, "<Enter>", make_on_enter())
+            difficulty_canvas.tag_bind(part, "<Leave>", make_on_leave())
 
-        # Click handler with confirmation message box
+        # Click to start quiz at selected difficulty
         def make_click(lvl):
             def _click(event):
                 if lvl == 1:
-                    msg = "There are 10 single-digit questions.\nAre you ready? Best of luck! 🎉"
+                    msg = "There are 10 single-digit questions.\nAre you ready? 🎉"
                 elif lvl == 2:
-                    msg = "There are 10 two-digit questions.\nAre you ready? Best of luck! 🎉"
+                    msg = "There are 10 two-digit questions.\nAre you ready? 🎉"
                 else:
-                    msg = "There are 10 four-digit questions.\nAre you ready? Best of luck! 🎉"
+                    msg = "There are 10 four-digit questions.\nAre you ready? 🎉"
                 answer = messagebox.askquestion("Start Level?", msg)
                 if answer == "yes":
                     global difficulty
@@ -281,7 +287,6 @@ def create_difficulty_buttons():
             return _click
 
         click_handler = make_click(level)
-
         for part in [rect, shadow, txt]:
             difficulty_canvas.tag_bind(part, "<Button-1>", click_handler)
 
@@ -291,19 +296,18 @@ def create_difficulty_buttons():
 quiz_canvas = tk.Canvas(quiz_frame, width=screen_width, height=screen_height, highlightthickness=0)
 quiz_canvas.pack(fill="both", expand=True)
 
-# Load background image safely
+# Background image for quiz
 quiz_bg_path = os.path.join(script_dir, "quiz_bg.jpg")
 if os.path.exists(quiz_bg_path):
     quiz_bg_img = Image.open(quiz_bg_path).resize((screen_width, screen_height), Image.Resampling.LANCZOS)
     quiz_bg_photo = ImageTk.PhotoImage(quiz_bg_img)
-    # Keep reference in a global variable
     quiz_canvas.bg_image_ref = quiz_bg_photo
     quiz_canvas.create_image(0, 0, anchor="nw", image=quiz_canvas.bg_image_ref)
 else:
     quiz_canvas.create_rectangle(0, 0, screen_width, screen_height, fill="black")
     print(f"Warning: Quiz background not found at {quiz_bg_path}")
 
-# Question, options, feedback, score
+# Labels and frames for questions, timer, options
 question_number_label = tk.Label(quiz_canvas, text="", font=("Comic Sans MS", 24, "bold"),
                                  fg="#f1c40f", bg="#bb2413", width=15)
 question_number_label.place(relx=0.5, rely=0.12, anchor="n")
@@ -316,21 +320,33 @@ question_label = tk.Label(question_frame, text="", font=("Comic Sans MS", 36, "b
                           bg="#ff6b6b", fg="white")
 question_label.pack(expand=True)
 
+# Timer label (emoji + number with no gap)
+timer_label = tk.Label(
+    question_frame,
+    text="⏳15",  # emoji directly next to number
+    font=("Segoe UI Emoji", 24, "bold"),  # emoji-friendly font
+    fg="yellow",
+    bg="#ff6b6b"
+)
+timer_label.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
+
+# Options frame
 options_frame = tk.Frame(quiz_canvas, bg="#ec3b27")
 options_frame.place(relx=0.5, rely=0.5, anchor="n")
-
 option_buttons = []
 
+# Feedback and score labels
 feedback_label = tk.Label(quiz_canvas, text="", font=("Comic Sans MS",18), fg="orange", bg="#222")
 feedback_label.place(relx=0.5, rely=0.75, anchor="center")
 
 score_label = tk.Label(quiz_canvas, text="Score: 0", font=("Helvetica",21), fg="black", bg="#ff6b6b")
 score_label.place(relx=0.5, rely=0.85, anchor="center")
 
-# --------------------------
-# QUIZ LOGIC FUNCTIONS
-# --------------------------
+# ==========================
+# QUIZ LOGIC + TIMER
+# ==========================
 def display_options(options):
+    """Displays answer buttons for the current question."""
     global option_buttons
     for btn in option_buttons:
         btn.destroy()
@@ -343,6 +359,7 @@ def display_options(options):
         option_buttons.append(btn)
 
 def random_int():
+    """Generates two random numbers based on difficulty level."""
     if difficulty == 1:
         return random.randint(0,9), random.randint(0,9)
     elif difficulty == 2:
@@ -351,12 +368,35 @@ def random_int():
         return random.randint(1000,9999), random.randint(1000,9999)
 
 def decide_operation():
+    """Randomly selects addition or subtraction."""
     return random.choice(['+','-'])
 
+def start_timer():
+    """Starts the countdown timer for a question."""
+    global timer_seconds, timer_id
+    timer_seconds = 15
+    def countdown():
+        global timer_seconds, timer_id
+        if timer_seconds >= 0:
+            timer_label.config(text=f"⏱️ {timer_seconds}")
+            if timer_seconds <= 5:
+                timer_label.config(fg="red")
+            else:
+                timer_label.config(fg="yellow")
+            timer_seconds -= 1
+            timer_id = quiz_frame.after(1000, countdown)
+        else:
+            feedback_label.config(text=f"❌ Time's up! The answer was {current_answer}", fg="black", bg="#f44336")
+            play_sound(wrong_audio_path)
+            quiz_frame.after(1200, next_question)
+    countdown()
+
 def next_question():
-    global num1, num2, operation, current_answer, question_number, second_chance
+    """Loads the next question or ends quiz if max_questions reached."""
+    global num1, num2, operation, current_answer, question_number, second_chance, timer_id
     feedback_label.config(text="")
     second_chance = True
+    if timer_id: quiz_frame.after_cancel(timer_id)
     if question_number >= max_questions:
         stop_music()
         show_final_score()
@@ -370,9 +410,12 @@ def next_question():
     question_label.config(text=f"{num1} {operation} {num2} = ? 🤔")
     display_options(options)
     question_number += 1
+    start_timer()
 
 def check_answer(ans):
-    global score, second_chance
+    """Checks user's answer and updates score/feedback."""
+    global score, second_chance, timer_id
+    if timer_id: quiz_frame.after_cancel(timer_id)
     if ans == current_answer:
         score += 10 if second_chance else 5
         feedback_label.config(text="🎉 Correct! 👍", fg="#31DA56", bg="#f86150")
@@ -384,12 +427,14 @@ def check_answer(ans):
             feedback_label.config(text="❌ Oops! Try Again! 💡", fg="yellow", bg="#f44336")
             play_sound(wrong_audio_path)
             second_chance = False
+            start_timer()
         else:
             feedback_label.config(text=f"❌ Wrong! The answer was {current_answer}", fg="black", bg="#f44336")
             play_sound(wrong_audio_path)
             quiz_canvas.after(1200, next_question)
 
 def start_quiz(level):
+    """Initializes quiz at selected difficulty."""
     global difficulty, score, question_number
     difficulty = level
     score = 0
@@ -401,7 +446,7 @@ def start_quiz(level):
     next_question()
 
 # ==========================
-# RESULT PAGE (videos and labels)
+# RESULT PAGE
 # ==========================
 result_canvas = tk.Canvas(result_frame, width=screen_width, height=screen_height, highlightthickness=0)
 result_canvas.pack(fill="both", expand=True)
@@ -411,6 +456,7 @@ result_frame_img = None
 def play_result_video():
     play_video(result_cap, result_canvas, result_bg_id, "result_after_id", "result_frame_img")
 
+# Result label and buttons
 result_label = tk.Label(result_canvas, text="", font=("Helvetica", 28),
                         fg="white", bg="black", justify="center")
 result_label.place(relx=0.35, rely=0.55, anchor="center")
@@ -423,6 +469,7 @@ quit_btn = tk.Button(result_canvas, text="Quit ❌", font=("Helvetica", 20),
                      bg="black", fg="#FFD700", bd=3, relief="raised")
 quit_btn.place(relx=0.43, rely=0.7, anchor="center")
 
+# Hover effects for result buttons
 def on_enter_play(event): play_again_btn.config(bg="#FFD700", fg="black")
 def on_leave_play(event): play_again_btn.config(bg="black", fg="#FFD700")
 play_again_btn.bind("<Enter>", on_enter_play)
@@ -433,6 +480,7 @@ def on_leave_quit(event): quit_btn.config(bg="black", fg="#FFD700")
 quit_btn.bind("<Enter>", on_enter_quit)
 quit_btn.bind("<Leave>", on_leave_quit)
 
+# Quit button logic
 def quit_quiz():
     answer = messagebox.askquestion("Quit Quiz", "Do you really want to quit? 🛑")
     if answer == "yes":
@@ -444,6 +492,7 @@ def quit_quiz():
 
 quit_btn.config(command=quit_quiz)
 
+# Display final score and rank
 def show_final_score():
     quiz_frame.pack_forget()
     result_frame.pack(fill="both", expand=True)
@@ -463,6 +512,7 @@ def show_final_score():
         msg = "Keep Practicing! You got this! 💡"
     result_label.config(text=f"Score: {score}/{max_questions*10}\nRank: {rank}\n{msg}")
 
+# Play again logic
 def play_again():
     global cap_start, instructions_cap, difficulty_cap, result_cap
     global start_after_id, instruction_after_id, difficulty_after_id, result_after_id
@@ -493,7 +543,7 @@ play_again_btn.config(command=play_again)
 # ==========================
 # START APPLICATION
 # ==========================
-play_music(intro_music_path, loop=-1, volume=0.9)
-play_start_video()
-create_play_button()
-root.mainloop()
+play_music(intro_music_path, loop=-1, volume=0.9)  # Play intro music
+play_start_video()  # Start video on start page
+create_play_button()  # Display start button
+root.mainloop()  # Launch main loop

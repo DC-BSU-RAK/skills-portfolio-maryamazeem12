@@ -184,28 +184,97 @@ def delete_student():
             view_all()
             return
     messagebox.showinfo("Not found", "Student does not exist.")
+    
+def update_student():
+    # Search student by ID or name
+    query = simpledialog.askstring("Update", "Enter student ID or Name:").strip().lower()
+    if not query:
+        return
+
+    matched_students = [s for s in students if s["id"].strip() == query or query in s["name"].strip().lower()]
+    if not matched_students:
+        messagebox.showinfo("Not Found", "Student does not exist.")
+        return
+
+    s = matched_students[0]  # Take the first match
+    try:
+        # Ask for new values in a message box; leave blank to keep old value
+        new_c1 = simpledialog.askstring("Update", f"CW1 ({s['c1']}): Leave blank to keep")
+        new_c2 = simpledialog.askstring("Update", f"CW2 ({s['c2']}): Leave blank to keep")
+        new_c3 = simpledialog.askstring("Update", f"CW3 ({s['c3']}): Leave blank to keep")
+        new_exam = simpledialog.askstring("Update", f"Exam ({s['exam']}): Leave blank to keep")
+
+        # Update only if input provided
+        if new_c1: s['c1'] = int(new_c1)
+        if new_c2: s['c2'] = int(new_c2)
+        if new_c3: s['c3'] = int(new_c3)
+        if new_exam: s['exam'] = int(new_exam)
+
+        save_students()  # Save updated data
+        messagebox.showinfo("Updated", f"{s['name']}'s record updated successfully!")
+        view_all()  # Refresh output display
+    except ValueError:
+        messagebox.showerror("Error", "Invalid input! Marks must be numbers.")
 
 def update_student():
-    # Update coursework/exam marks for a student
-    query = simpledialog.askstring("Update", "Enter student ID or name:").strip().lower()
-    for s in students:
-        if s["id"].strip() == query or query in s["name"].strip().lower():
-            try:
-                new_c1 = simpledialog.askstring("Update", f"CW1 ({s['c1']}):")
-                new_c2 = simpledialog.askstring("Update", f"CW2 ({s['c2']}):")
-                new_c3 = simpledialog.askstring("Update", f"CW3 ({s['c3']}):")
-                new_exam = simpledialog.askstring("Update", f"Exam ({s['exam']}):")
-                if new_c1: s['c1'] = int(new_c1)
-                if new_c2: s['c2'] = int(new_c2)
-                if new_c3: s['c3'] = int(new_c3)
-                if new_exam: s['exam'] = int(new_exam)
-                save_students()
-                messagebox.showinfo("Updated", "Student record updated.")
-                view_all()
-            except:
-                messagebox.showerror("Error", "Invalid input.")
-            return
-    messagebox.showinfo("Not found", "Student does not exist.")
+    # Search student by ID or name
+    query = simpledialog.askstring("Update", "Enter student ID or Name:").strip().lower()
+    if not query:
+        return
+
+    matched_students = [s for s in students if s["id"].strip() == query or query in s["name"].strip().lower()]
+    if not matched_students:
+        messagebox.showinfo("Not Found", "Student does not exist.")
+        return
+
+    s = matched_students[0]  # Take the first match
+
+    # Create a pop-up window
+    popup = tk.Toplevel(root)
+    popup.title(f"Update {s['name']}'s Record")
+    popup.geometry("400x350")
+    popup.configure(bg="#1A472A")
+
+    # Labels and entries
+    labels = ["Student ID", "Name", "Coursework 1", "Coursework 2", "Coursework 3", "Exam"]
+    keys = ["id", "name", "c1", "c2", "c3", "exam"]
+    entries = {}
+
+    for i, (label, key) in enumerate(zip(labels, keys)):
+        tk.Label(popup, text=label, font=("Helvetica", 12, "bold"), fg="#F5F5DC", bg="#1A472A").grid(row=i, column=0, padx=15, pady=10, sticky="w")
+        entry = tk.Entry(popup, font=("Helvetica", 12))
+        entry.grid(row=i, column=1, padx=15, pady=10)
+        entry.insert(0, str(s[key]))  # pre-fill with existing value
+        entries[key] = entry
+
+    # Function to save updates
+    def save_updates():
+        try:
+            # Update values from entries
+            s["id"] = entries["id"].get().strip()
+            s["name"] = entries["name"].get().strip()
+            s["c1"] = int(entries["c1"].get())
+            s["c2"] = int(entries["c2"].get())
+            s["c3"] = int(entries["c3"].get())
+            s["exam"] = int(entries["exam"].get())
+            save_students()
+            messagebox.showinfo("Updated", f"{s['name']}'s record updated successfully!")
+            popup.destroy()
+            view_all()  # Refresh main output
+        except ValueError:
+            messagebox.showerror("Error", "Invalid input! Marks must be numbers.")
+
+    # Save button
+    save_btn = tk.Button(popup, text="Save Changes", font=("Helvetica", 14, "bold"),
+                         bg="#F5F5DC", fg="#0E3B2B", width=15, height=2,
+                         relief="ridge", bd=3, command=save_updates)
+    save_btn.grid(row=len(labels), column=0, columnspan=2, pady=20)
+
+    # Optional: Make popup modal
+    popup.grab_set()
+    popup.focus_set()
+
+
 
 # -----------------------------
 # GUI Setup

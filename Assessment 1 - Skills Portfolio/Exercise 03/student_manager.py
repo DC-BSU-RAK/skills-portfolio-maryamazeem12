@@ -216,6 +216,9 @@ def update_student():
     except ValueError:
         messagebox.showerror("Error", "Invalid input! Marks must be numbers.")
 
+# -----------------------------
+# Update student
+# -----------------------------
 def update_student():
     # Search student by ID or name
     query = simpledialog.askstring("Update", "Enter student ID or Name:").strip().lower()
@@ -273,8 +276,6 @@ def update_student():
     # Optional: Make popup modal
     popup.grab_set()
     popup.focus_set()
-
-
 
 # -----------------------------
 # GUI Setup
@@ -503,6 +504,21 @@ clear_btn.pack()
 clear_btn.bind("<Enter>", lambda e: clear_btn.config(bg="#D1C4E9"))
 clear_btn.bind("<Leave>", lambda e: clear_btn.config(bg="#F5F5DC"))
 
+# -----------------------------
+# Logout Button with Shadow
+# -----------------------------
+# -----------------------------
+# Logout Button at Top-Right Corner
+# -----------------------------
+logout_shadow = tk.Frame(dashboard_frame, bg="#0C2F24")
+logout_shadow.place(relx=0.97, y=15, anchor="ne")  # Top-right corner
+
+logout_btn = tk.Button(logout_shadow, text="Logout", font=("Helvetica", 14, "bold"),
+                       bg="#F5F5DC", fg="#0E3B2B", width=10, height=1,
+                       relief="ridge", bd=3,
+                       command=lambda: switch_frame(start_frame))
+logout_btn.pack()
+logout_btn.bind("<Enter>", lambda e: logout_btn.config(bg="#D1C4E9"))
 # -----------------------------
 # Right: Output Display
 # -----------------------------

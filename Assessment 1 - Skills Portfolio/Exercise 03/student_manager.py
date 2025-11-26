@@ -505,9 +505,6 @@ clear_btn.bind("<Enter>", lambda e: clear_btn.config(bg="#D1C4E9"))
 clear_btn.bind("<Leave>", lambda e: clear_btn.config(bg="#F5F5DC"))
 
 # -----------------------------
-# Logout Button with Shadow
-# -----------------------------
-# -----------------------------
 # Logout Button at Top-Right Corner
 # -----------------------------
 logout_shadow = tk.Frame(dashboard_frame, bg="#0C2F24")
